@@ -14,7 +14,7 @@ function downloadAllMedia(mediaUrls) {
     }
 
     // Filter out unwanted filenames
-    const unwantedPatterns = ['150x150', '300x300', '240p'];
+    const unwantedPatterns = ['150x150', '300x300', '240p', '720p'];
     if (unwantedPatterns.some(pattern => filename.includes(pattern))) {
       console.log(`Skipping file ${filename} due to unwanted pattern.`);
       return;

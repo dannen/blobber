@@ -17,7 +17,7 @@ function collectMediaUrls(existingUrls = []) {
   });
 
   videos.forEach((video, index) => {
-    if (video.src && !video.src.includes('thumb') && !video.src.includes('720p') && !mediaUrls.some(media => media.url === video.src)) {
+    if (video.src && !mediaUrls.some(media => media.url === video.src)) {
       const url = video.src;
       const filename = `video-${index}.mp4`;
       mediaUrls.push({ url, filename });
@@ -27,7 +27,7 @@ function collectMediaUrls(existingUrls = []) {
     } else {
       const sources = video.querySelectorAll('source');
       sources.forEach((source, sourceIndex) => {
-        if (source.src && !source.src.includes('thumb') && !source.src.includes('720p') && !mediaUrls.some(media => media.url === source.src)) {
+        if (source.src && !mediaUrls.some(media => media.url === source.src)) {
           const url = source.src;
           const filename = `video-${index}-${sourceIndex}.mp4`;
           mediaUrls.push({ url, filename });
