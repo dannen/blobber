@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Blobber</title>
+    
+    <style>
+        html, body {
+            min-width: 30vw;
+            min-height: 30vh;
+        }
+    
+        body {
+            font-family: Arial, sans-serif;
+            background-color: black;
+            color: white;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th, td {
+            padding: 8px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        th {
+            background-color: #333;
+        }
+        a {
+            color: #00ff00;
+        }
+        button {
+            background-color: #444;
+            color: white;
+            padding: 10px;
+            border: none;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background-color: #555;
+        }
+        #scrollToTop {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background-color: #444;
+            color: white;
+            padding: 10px;
+            border: none;
+            cursor: pointer;
+            display: none;
+        }
+        #scrollToTop:hover {
+            background-color: #555;
+        }
+    </style>
+</head>
+<body>
+    <h1>Blobber</h1>
+    <button id="downloadAll">Download All</button>
+    <button id="downloadAllVideos">Download All Videos</button>
+    <button id="downloadAllImages">Download All Images</button>
+    <table id="mediaTable">
+        <thead>
+            <tr>
+                <th>Filename</th>
+                <th>Download</th>
+            </tr>
+        </thead>
+        <tbody>
+        </tbody>
+    </table>
+    <button id="scrollToTop">Scroll to Top</button>
+    <script src="popup.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const scrollToTopButton = document.getElementById('scrollToTop');
+            window.addEventListener('scroll', () => {
+                if (window.scrollY > 200) {
+                    scrollToTopButton.style.display = 'block';
+                } else {
+                    scrollToTopButton.style.display = 'none';
+                }
+            });
+
+            scrollToTopButton.addEventListener('click', () => {
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            });
+        });
+    </script>
+</body>
+</html>

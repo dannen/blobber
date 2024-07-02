@@ -1,0 +1,39 @@
+{
+  "manifest_version": 2,
+  "name": "Blobber",
+  "version": "2.9",
+  "description": "Collects all image and video URLs on the page and displays them in a popup for download.",
+  "permissions": [
+    "activeTab",
+    "tabs",
+    "downloads",
+    "webRequest",
+    "webRequestBlocking",
+    "<all_urls>"
+  ],
+  "background": {
+    "scripts": [
+      "background.js",
+      "download.js"
+    ],
+    "persistent": false
+  },
+  "browser_action": {
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icon-16.png",
+      "48": "icon-48.png",
+      "128": "icon.png"
+    }
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "<all_urls>"
+      ],
+      "js": [
+        "content.js"
+      ]
+    }
+  ]
+}
