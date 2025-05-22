@@ -1,5 +1,16 @@
 let collectedMediaUrls = [];
 
+// Debounce function
+function debounce(func, delay) {
+  let timeoutId;
+  return function(...args) {
+    clearTimeout(timeoutId);
+    timeoutId = setTimeout(() => {
+      func.apply(this, args);
+    }, delay);
+  };
+}
+
 function collectMediaUrls(existingUrls = []) {
   const mediaUrls = [...existingUrls];
   const images = document.querySelectorAll('img');
@@ -48,7 +59,19 @@ function updateMediaUrls() {
   chrome.runtime.sendMessage({ action: "updateMediaUrls", mediaUrls: collectedMediaUrls });
 }
 
-const observer = new MutationObserver(updateMediaUrls);
+const debouncedUpdateMediaUrls = debounce(updateMediaUrls, 500);
+
+const observer = new MutationObserver((mutationsList) => {
+  for (const mutation of mutationsList) {
+    if (mutation.type === 'childList') {
+      const relevantNodes = Array.from(mutation.addedNodes).concat(Array.from(mutation.removedNodes));
+      if (relevantNodes.some(node => node.tagName === 'IMG' || node.tagName === 'VIDEO')) {
+        debouncedUpdateMediaUrls();
+        break; 
+      }
+    }
+  }
+});
 observer.observe(document.body, { childList: true, subtree: true });
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {

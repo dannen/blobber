@@ -17,6 +17,7 @@
         table {
             width: 100%;
             border-collapse: collapse;
+            margin-bottom: 20px; /* Add space between tables */
         }
         th, td {
             padding: 8px;
@@ -25,6 +26,10 @@
         }
         th {
             background-color: #333;
+        }
+        h2 {
+            color: #00ff00; /* Green color for headings */
+            margin-top: 20px;
         }
         a {
             color: #00ff00;
@@ -59,18 +64,33 @@
 <body>
     <h1>Blobber</h1>
     <button id="downloadAll">Download All</button>
-    <button id="downloadAllVideos">Download All Videos</button>
     <button id="downloadAllImages">Download All Images</button>
-    <table id="mediaTable">
+    <button id="downloadAllVideos">Download All Videos</button>
+
+    <h2>Images</h2>
+    <table id="imageTable">
         <thead>
             <tr>
                 <th>Filename</th>
                 <th>Download</th>
             </tr>
         </thead>
-        <tbody>
+        <tbody id="imageTableBody">
         </tbody>
     </table>
+
+    <h2>Videos</h2>
+    <table id="videoTable">
+        <thead>
+            <tr>
+                <th>Filename</th>
+                <th>Download</th>
+            </tr>
+        </thead>
+        <tbody id="videoTableBody">
+        </tbody>
+    </table>
+
     <button id="scrollToTop">Scroll to Top</button>
     <script src="popup.js"></script>
     <script>
