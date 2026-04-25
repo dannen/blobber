@@ -1,56 +1,83 @@
 let collectedMediaUrls = [];
 
-// Debounce function
 function debounce(func, delay) {
   let timeoutId;
   return function(...args) {
     clearTimeout(timeoutId);
-    timeoutId = setTimeout(() => {
-      func.apply(this, args);
-    }, delay);
+    timeoutId = setTimeout(() => func.apply(this, args), delay);
   };
 }
 
+function getExtFromUrl(url) {
+  if (!url || url.startsWith('blob:') || url.startsWith('data:')) return null;
+  try {
+    const pathname = new URL(url).pathname;
+    const match = pathname.match(/\.([a-zA-Z0-9]+)$/);
+    return match ? match[1].toLowerCase() : null;
+  } catch (e) {
+    return null;
+  }
+}
+
 function collectMediaUrls(existingUrls = []) {
+  const seenUrls = new Set(existingUrls.map(m => m.url));
   const mediaUrls = [...existingUrls];
-  const images = document.querySelectorAll('img');
-  const videos = document.querySelectorAll('video');
 
-  images.forEach((img, index) => {
-    if (img.src && !img.src.includes('thumb') && !mediaUrls.some(media => media.url === img.src)) {
-      const url = img.src;
-      const filename = `image-${index}.png`;
-      mediaUrls.push({ url, filename });
-      console.log(`Image found: ${url}`);
-    } else if (img.src.includes('thumb')) {
-      console.log(`Image skipped (contains 'thumb'): ${img.src}`);
+  function add(url, filename, type) {
+    if (!url || seenUrls.has(url)) return;
+    if (url.includes('thumb')) return;
+    if (filename.toLowerCase().endsWith('.svg')) return;
+    seenUrls.add(url);
+    mediaUrls.push({ url, filename, type });
+  }
+
+  // <img> elements — use currentSrc to respect responsive image selection
+  document.querySelectorAll('img').forEach((img, i) => {
+    const src = img.currentSrc || img.src;
+    if (src) add(src, `image-${i}.${getExtFromUrl(src) || 'jpg'}`, 'image');
+
+    // Lazy-load patterns used by many frameworks
+    for (const attr of ['data-src', 'data-lazy-src', 'data-original', 'data-url']) {
+      const val = img.getAttribute(attr);
+      if (val) add(val, `image-${i}-lazy.${getExtFromUrl(val) || 'jpg'}`, 'image');
     }
   });
 
-  videos.forEach((video, index) => {
-    if (video.src && !mediaUrls.some(media => media.url === video.src)) {
-      const url = video.src;
-      const filename = `video-${index}.mp4`;
-      mediaUrls.push({ url, filename });
-      console.log(`Video found with src: ${url}`);
-    } else if (video.src.includes('thumb')) {
-      console.log(`Video skipped (contains 'thumb'): ${video.src}`);
-    } else {
-      const sources = video.querySelectorAll('source');
-      sources.forEach((source, sourceIndex) => {
-        if (source.src && !mediaUrls.some(media => media.url === source.src)) {
-          const url = source.src;
-          const filename = `video-${index}-${sourceIndex}.mp4`;
-          mediaUrls.push({ url, filename });
-          console.log(`Video source found: ${url}`);
-        } else if (source.src.includes('thumb')) {
-          console.log(`Video source skipped (contains 'thumb'): ${source.src}`);
-        }
-      });
+  // <picture> source srcset — each comma-separated entry is a candidate URL
+  document.querySelectorAll('picture source[srcset]').forEach((source, i) => {
+    source.srcset.split(',').forEach(entry => {
+      const url = entry.trim().split(/\s+/)[0];
+      if (url) add(url, `picture-${i}.${getExtFromUrl(url) || 'jpg'}`, 'image');
+    });
+  });
+
+  // CSS background-image — only scans elements with inline background style to avoid
+  // iterating every element's computed style (which would freeze the page)
+  document.querySelectorAll('[style*="background"]').forEach((el, i) => {
+    const bg = el.style.backgroundImage;
+    if (!bg || bg === 'none') return;
+    const re = /url\(["']?([^"')]+)["']?\)/g;
+    let match;
+    while ((match = re.exec(bg)) !== null) {
+      if (match[1] && !match[1].startsWith('data:')) {
+        add(match[1], `bg-${i}.${getExtFromUrl(match[1]) || 'jpg'}`, 'image');
+      }
     }
   });
 
-  console.log('Collected media URLs:', mediaUrls);
+  // <video> elements — check currentSrc, src, child <source> tags, and lazy attrs
+  document.querySelectorAll('video').forEach((video, i) => {
+    const src = video.currentSrc || video.src;
+    if (src) add(src, `video-${i}.${getExtFromUrl(src) || 'mp4'}`, 'video');
+
+    video.querySelectorAll('source').forEach((source, si) => {
+      if (source.src) add(source.src, `video-${i}-${si}.${getExtFromUrl(source.src) || 'mp4'}`, 'video');
+    });
+
+    const dataSrc = video.getAttribute('data-src');
+    if (dataSrc) add(dataSrc, `video-${i}-lazy.${getExtFromUrl(dataSrc) || 'mp4'}`, 'video');
+  });
+
   return mediaUrls;
 }
 
@@ -59,23 +86,37 @@ function updateMediaUrls() {
   chrome.runtime.sendMessage({ action: "updateMediaUrls", mediaUrls: collectedMediaUrls });
 }
 
-const debouncedUpdateMediaUrls = debounce(updateMediaUrls, 500);
+const debouncedUpdate = debounce(updateMediaUrls, 250);
 
 const observer = new MutationObserver((mutationsList) => {
   for (const mutation of mutationsList) {
     if (mutation.type === 'childList') {
-      const relevantNodes = Array.from(mutation.addedNodes).concat(Array.from(mutation.removedNodes));
-      if (relevantNodes.some(node => node.tagName === 'IMG' || node.tagName === 'VIDEO')) {
-        debouncedUpdateMediaUrls();
-        break; 
+      const hasMedia = Array.from(mutation.addedNodes).some(node =>
+        node.nodeType === 1 && (
+          node.tagName === 'IMG' || node.tagName === 'VIDEO' ||
+          (node.querySelector && node.querySelector('img, video, picture') !== null)
+        )
+      );
+      if (hasMedia) { debouncedUpdate(); break; }
+    } else if (mutation.type === 'attributes') {
+      const tag = mutation.target.tagName;
+      if (tag === 'IMG' || tag === 'VIDEO' || tag === 'SOURCE') {
+        debouncedUpdate();
       }
     }
   }
 });
-observer.observe(document.body, { childList: true, subtree: true });
+
+observer.observe(document.body, {
+  childList: true,
+  subtree: true,
+  attributes: true,
+  attributeFilter: ['src', 'data-src', 'srcset', 'data-lazy-src', 'data-original']
+});
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === "collectMedia") {
+    collectedMediaUrls = collectMediaUrls();
     sendResponse({ mediaUrls: collectedMediaUrls });
   }
 });

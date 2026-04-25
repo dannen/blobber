@@ -7,8 +7,6 @@
     "activeTab",
     "tabs",
     "downloads",
-    "webRequest",
-    "webRequestBlocking",
     "<all_urls>"
   ],
   "background": {

@@ -1,51 +1,46 @@
+function getFilename(media) {
+  const url = media.url;
+  // blob: and data: URLs have no extractable path — use the name from content script
+  if (url.startsWith('blob:') || url.startsWith('data:')) {
+    return media.filename || 'download';
+  }
+  try {
+    const urlObj = new URL(url);
+    let name = urlObj.pathname.substring(urlObj.pathname.lastIndexOf('/') + 1);
+    // Strip query-string artifacts that sometimes end up in the path segment
+    name = name.split('?')[0];
+    if (name) return name;
+  } catch (e) { /* fall through */ }
+  return media.filename || 'download';
+}
+
 function downloadAllMedia(mediaUrls) {
-  const uniqueMediaUrls = Array.from(new Set(mediaUrls.map(JSON.stringify))).map(JSON.parse);
+  const seenUrls = new Set();
 
-  uniqueMediaUrls.forEach(media => {
-    let filename = media.filename;
+  mediaUrls.forEach(media => {
+    if (seenUrls.has(media.url)) return;
+    seenUrls.add(media.url);
 
-    // Extract filename from the URL if available
-    const url = new URL(media.url);
-    const pathname = url.pathname;
-    const extractedFilename = pathname.substring(pathname.lastIndexOf('/') + 1);
+    let filename = getFilename(media);
 
-    if (extractedFilename) {
-      filename = extractedFilename;
-    }
+    // Skip SVGs
+    if (filename.toLowerCase().endsWith('.svg')) return;
 
-    // Filter out unwanted filenames
-    const unwantedPatterns = ['150x150', '300x300', '240p', '720p'];
-    if (unwantedPatterns.some(pattern => filename.includes(pattern))) {
-      console.log(`Skipping file ${filename} due to unwanted pattern.`);
-      return;
-    }
-
-    // Append the current Unix timestamp to the filename
+    // Append timestamp to keep filenames unique across repeated downloads
     const timestamp = Math.floor(Date.now() / 1000);
-    const filenameParts = filename.split('.');
-    if (filenameParts.length > 1) {
-      filenameParts[filenameParts.length - 2] += `_${timestamp}`;
-      filename = filenameParts.join('.');
+    const parts = filename.split('.');
+    if (parts.length > 1) {
+      parts[parts.length - 2] += `_${timestamp}`;
+      filename = parts.join('.');
     } else {
       filename += `_${timestamp}`;
     }
 
-    // Ignore SVG files
-    if (!filename.endsWith('.svg')) {
-      // Check if file already exists
-      chrome.downloads.search({ filename: filename }, (results) => {
-        if (results.length === 0) {
-          // File does not exist, proceed to download
-          chrome.downloads.download({
-            url: media.url,
-            filename: filename,
-            saveAs: false
-          });
-        } else {
-          console.log(`File ${filename} already exists. Skipping download.`);
-        }
-      });
-    }
+    chrome.downloads.download({ url: media.url, filename, saveAs: false }, (downloadId) => {
+      if (chrome.runtime.lastError) {
+        console.error(`Download failed for ${media.url}:`, chrome.runtime.lastError.message);
+      }
+    });
   });
 }
 
