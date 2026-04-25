@@ -1,6 +1,8 @@
 const IMAGE_EXTS = ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.bmp', '.avif'];
 const VIDEO_EXTS = ['.mp4', '.mov', '.mkv', '.mpg', '.mpeg', '.webm', '.avi'];
 
+let currentTabId = null;
+
 function classifyMedia(media) {
   // Prefer explicit type tag set by content script
   if (media.type === 'image') return 'image';
@@ -60,19 +62,20 @@ function updateMediaList(mediaUrls) {
   });
 
   replaceButtonListener('downloadAll', () => {
-    chrome.runtime.sendMessage({ action: "downloadAll", mediaUrls }, r => console.log(r && r.status));
+    chrome.runtime.sendMessage({ action: "downloadAll", mediaUrls, tabId: currentTabId }, r => console.log(r && r.status));
   });
   replaceButtonListener('downloadAllVideos', () => {
-    chrome.runtime.sendMessage({ action: "downloadAll", mediaUrls: videoItems }, r => console.log(r && r.status));
+    chrome.runtime.sendMessage({ action: "downloadAll", mediaUrls: videoItems, tabId: currentTabId }, r => console.log(r && r.status));
   });
   replaceButtonListener('downloadAllImages', () => {
-    chrome.runtime.sendMessage({ action: "downloadAll", mediaUrls: imageItems }, r => console.log(r && r.status));
+    chrome.runtime.sendMessage({ action: "downloadAll", mediaUrls: imageItems, tabId: currentTabId }, r => console.log(r && r.status));
   });
 }
 
 document.addEventListener('DOMContentLoaded', function() {
   chrome.tabs.query({ active: true, currentWindow: true }, function(tabs) {
-    chrome.tabs.sendMessage(tabs[0].id, { action: "collectMedia" }, function(response) {
+    currentTabId = tabs[0].id;
+    chrome.tabs.sendMessage(currentTabId, { action: "collectMedia" }, function(response) {
       const imageTableBody = document.querySelector('#imageTableBody');
       const videoTableBody = document.querySelector('#videoTableBody');
 

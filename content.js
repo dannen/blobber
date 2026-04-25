@@ -118,5 +118,25 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === "collectMedia") {
     collectedMediaUrls = collectMediaUrls();
     sendResponse({ mediaUrls: collectedMediaUrls });
+  } else if (request.action === "downloadBlob") {
+    // Blob URLs are scoped to the page context — the background script can't resolve them.
+    // Trigger the download here via an anchor click where the blob is accessible.
+    const timestamp = Math.floor(Date.now() / 1000);
+    let filename = request.filename || 'video.mp4';
+    const parts = filename.split('.');
+    if (parts.length > 1) {
+      parts[parts.length - 2] += `_${timestamp}`;
+      filename = parts.join('.');
+    } else {
+      filename += `_${timestamp}`;
+    }
+    const a = document.createElement('a');
+    a.href = request.url;
+    a.download = filename;
+    a.style.display = 'none';
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => document.body.removeChild(a), 100);
+    sendResponse({ success: true });
   }
 });

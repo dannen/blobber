@@ -14,7 +14,7 @@ function getFilename(media) {
   return media.filename || 'download';
 }
 
-function downloadAllMedia(mediaUrls) {
+function downloadAllMedia(mediaUrls, tabId) {
   const seenUrls = new Set();
 
   mediaUrls.forEach(media => {
@@ -25,6 +25,16 @@ function downloadAllMedia(mediaUrls) {
 
     // Skip SVGs
     if (filename.toLowerCase().endsWith('.svg')) return;
+
+    if (media.url.startsWith('blob:')) {
+      // Blob URLs are page-scoped — delegate to the content script which can access them.
+      if (tabId) {
+        chrome.tabs.sendMessage(tabId, { action: "downloadBlob", url: media.url, filename });
+      } else {
+        console.error(`Cannot download blob URL without tabId: ${media.url}`);
+      }
+      return;
+    }
 
     // Append timestamp to keep filenames unique across repeated downloads
     const timestamp = Math.floor(Date.now() / 1000);
@@ -46,7 +56,7 @@ function downloadAllMedia(mediaUrls) {
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === "downloadAll") {
-    downloadAllMedia(request.mediaUrls);
+    downloadAllMedia(request.mediaUrls, request.tabId);
     sendResponse({ status: "started" });
   }
 });
